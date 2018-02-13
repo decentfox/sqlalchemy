@@ -2367,3 +2367,23 @@ class TestProperties(fixtures.TestBase):
 
             eq_(props._data, p._data)
             eq_(props.keys(), p.keys())
+
+
+class TestWaitGenerator(fixtures.TestBase):
+    def test_sync(self):
+        def method():
+            a = yield 1
+            b = yield 2
+            raise util.Return(a + b)
+        assert util.wait(method()) == 3
+
+    def test_no_return(self):
+        def method():
+            a = yield 1
+            assert a == 1
+        util.wait(method())
+
+    def test_no_yield(self):
+        def method():
+            return 123
+        assert util.wait(method()) == 123

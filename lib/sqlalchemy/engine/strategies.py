@@ -45,7 +45,7 @@ class EngineStrategy(object):
 class DefaultEngineStrategy(EngineStrategy):
     """Base class for built-in strategies."""
 
-    def create(self, name_or_url, **kwargs):
+    def _create(self, name_or_url, kwargs):
         # create url.URL object
         u = url.make_url(name_or_url)
 
@@ -131,7 +131,7 @@ class DefaultEngineStrategy(EngineStrategy):
             for plugin in plugins:
                 plugin.handle_pool_kwargs(poolclass, pool_args)
 
-            pool = poolclass(creator, **pool_args)
+            pool = yield poolclass(creator, **pool_args)
         else:
             if isinstance(pool, poollib._DBProxy):
                 pool = pool.get_pool(*cargs, **cparams)
@@ -189,7 +189,10 @@ class DefaultEngineStrategy(EngineStrategy):
         for plugin in plugins:
             plugin.engine_created(engine)
 
-        return engine
+        raise util.Return(engine)
+
+    def create(self, name_or_url, **kwargs):
+        return util.wait(self._create(name_or_url, kwargs))
 
 
 class PlainEngineStrategy(DefaultEngineStrategy):

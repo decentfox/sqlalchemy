@@ -128,6 +128,10 @@ def run_setup(with_cext):
     else:
         kwargs['ext_modules'] = []
 
+    tests_require = ['pytest >= 2.5.2', 'mock', 'pytest-xdist']
+    if sys.version_info >= (3, 5):
+        tests_require.append('pytest-asyncio >= 0.8.0')
+
     setup(
         name="SQLAlchemy",
         version=VERSION,
@@ -139,7 +143,7 @@ def run_setup(with_cext):
         package_dir={'': 'lib'},
         license="MIT License",
         cmdclass=cmdclass,
-        tests_require=['pytest >= 2.5.2', 'mock', 'pytest-xdist'],
+        tests_require=tests_require,
         long_description=readme,
         classifiers=[
             "Development Status :: 5 - Production/Stable",

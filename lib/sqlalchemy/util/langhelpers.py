@@ -1420,3 +1420,21 @@ def wrap_callable(wrapper, fn):
             _f.__doc__ = fn.__doc__
 
         return _f
+
+
+class Return(Exception):
+    def __init__(self, value):
+        self.value = value
+
+
+def wait(gen):
+    if not inspect.isgenerator(gen):
+        return gen
+    result = None
+    try:
+        while True:
+            result = gen.send(result)
+    except Return as e:
+        return e.value
+    except StopIteration:
+        pass

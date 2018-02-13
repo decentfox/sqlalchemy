@@ -33,3 +33,10 @@ with open(bootstrap_file) as f:
     to_bootstrap = "pytest"
     exec(code, globals(), locals())
     from pytestplugin import *  # noqa
+
+
+collect_ignore = []
+if sys.version_info < (3, 5):
+    collect_ignore.extend([
+        'base/test_aioutils.py',
+    ])
