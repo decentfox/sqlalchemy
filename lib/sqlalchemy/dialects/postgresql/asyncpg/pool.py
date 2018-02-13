@@ -1,7 +1,45 @@
 import asyncpg
 from asyncpg.connection import Connection
+from asyncpg.prepared_stmt import PreparedStatement
 
 from ....ext.aio import pool
+
+
+class AnonymousPreparedStatement(PreparedStatement):
+    def __del__(self):
+        self._state.detach()
+
+
+class AsyncpgDBAPIConnection(pool.DBAPIConnection):
+    async def execute(self, statement, parameters):
+        return await self.prepare(statement)
+
+    async def prepare(self, statement, named=True):
+        if named:
+            rv = await self._conn.prepare(statement)
+        else:
+            # it may still be a named statement, if cache is not disabled
+            # noinspection PyProtectedMember
+            self._conn._check_open()
+            # noinspection PyProtectedMember
+            state = await self._conn._get_statement(statement, None)
+            if state.name:
+                rv = PreparedStatement(self._conn, statement, state)
+            else:
+                rv = AnonymousPreparedStatement(self._conn, statement, state)
+        self._stmt = rv
+        return rv
+
+    @property
+    def description(self):
+        try:
+            return [((a[0], a[1][0]) + (None,) * 5)
+                    for a in self._stmt.get_attributes()]
+        except TypeError:  # asyncpg <= 0.12.0
+            return []
+
+    async def fetchone(self):
+        return await self._stmt.fetchrow()
 
 
 class AsyncpgPool(pool.AsyncPool):
@@ -34,3 +72,6 @@ class AsyncpgPool(pool.AsyncPool):
     async def _async_init(self):
         self._pool = await asyncpg.create_pool(*self._args, **self._kwargs)
         return self
+
+    async def connect(self):
+        return AsyncpgDBAPIConnection(self, await self._pool.acquire())

@@ -14,3 +14,4 @@ class EngineTest(fixtures.TestBase):
         from sqlalchemy import create_engine
         e = await create_engine(url, strategy='asyncio')
         assert isinstance(e.pool._pool, pool.Pool)
+        print(await (await e.execute('select now()')).scalar())

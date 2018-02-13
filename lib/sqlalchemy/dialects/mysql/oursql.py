@@ -67,14 +67,14 @@ class MySQLDialect_oursql(MySQLDialect):
     def dbapi(cls):
         return __import__('oursql')
 
-    def do_execute(self, cursor, statement, parameters, context=None):
+    def _do_execute(self, cursor, statement, parameters, context=None):
         """Provide an implementation of
         *cursor.execute(statement, parameters)*."""
 
         if context and context.plain_query:
-            cursor.execute(statement, plain_query=True)
+            yield cursor.execute(statement, plain_query=True)
         else:
-            cursor.execute(statement, parameters)
+            yield cursor.execute(statement, parameters)
 
     def do_begin(self, connection):
         connection.cursor().execute('BEGIN', plain_query=True)

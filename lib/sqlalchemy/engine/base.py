@@ -1088,7 +1088,10 @@ class Connection(Connectable):
 
     def _execute_text(self, statement, multiparams, params):
         """Execute a string SQL statement."""
+        return util.wait(
+            self._execute_text_inner(statement, multiparams, params))
 
+    def _execute_text_inner(self, statement, multiparams, params):
         if self._has_events or self.engine._has_events:
             for fn in self.dispatch.before_execute:
                 statement, multiparams, params = \
@@ -1096,7 +1099,7 @@ class Connection(Connectable):
 
         dialect = self.dialect
         parameters = _distill_params(multiparams, params)
-        ret = self._execute_context(
+        ret = yield self._execute_context(
             dialect,
             dialect.execution_ctx_cls._init_statement,
             statement,
@@ -1106,7 +1109,7 @@ class Connection(Connectable):
         if self._has_events or self.engine._has_events:
             self.dispatch.after_execute(self,
                                         statement, multiparams, params, ret)
-        return ret
+        raise util.Return(ret)
 
     def _execute_context(self, dialect, constructor,
                          statement, parameters,
@@ -1114,6 +1117,12 @@ class Connection(Connectable):
         """Create an :class:`.ExecutionContext` and execute, returning
         a :class:`.ResultProxy`."""
 
+        return util.wait(self._execute_context_inner(
+            dialect, constructor, statement, parameters, *args))
+
+    def _execute_context_inner(self, dialect, constructor,
+                               statement, parameters,
+                               *args):
         try:
             try:
                 conn = self.__connection
@@ -1186,7 +1195,7 @@ class Connection(Connectable):
                             evt_handled = True
                             break
                 if not evt_handled:
-                    self.dialect.do_execute(
+                    yield self.dialect.do_execute(
                         cursor,
                         statement,
                         parameters,
@@ -1230,7 +1239,7 @@ class Connection(Connectable):
                 # ResultProxy will close this Connection when no more
                 # rows to fetch.
                 result._autoclose_connection = True
-        return result
+        raise util.Return(result)
 
     def _cursor_execute(self, cursor, statement, parameters, context=None):
         """Execute a statement + params on the given cursor.
@@ -2070,9 +2079,12 @@ class Engine(Connectable, log.Identified):
         resource to be returned to the connection pool.
 
         """
+        return util.wait(self._execute(statement, *multiparams, **params))
 
-        connection = self.contextual_connect(close_with_result=True)
-        return connection.execute(statement, *multiparams, **params)
+    def _execute(self, statement, *multiparams, **params):
+        connection = yield self.contextual_connect(close_with_result=True)
+        raise util.Return((
+            yield connection.execute(statement, *multiparams, **params)))
 
     def scalar(self, statement, *multiparams, **params):
         return self.execute(statement, *multiparams, **params).scalar()
@@ -2117,12 +2129,14 @@ class Engine(Connectable, log.Identified):
           :meth:`.Engine.execute` method.
 
         """
+        return util.wait(self._contextual_connect(close_with_result, **kwargs))
 
-        return self._connection_cls(
+    def _contextual_connect(self, close_with_result=False, **kwargs):
+        raise util.Return(self._connection_cls(
             self,
-            self._wrap_pool_connect(self.pool.connect, None),
+            (yield self._wrap_pool_connect(self.pool.connect, None)),
             close_with_result=close_with_result,
-            **kwargs)
+            **kwargs))
 
     def table_names(self, schema=None, connection=None):
         """Return a list of all table names available in the database.
@@ -2153,15 +2167,20 @@ class Engine(Connectable, log.Identified):
         return self.run_callable(self.dialect.has_table, table_name, schema)
 
     def _wrap_pool_connect(self, fn, connection):
+        return util.wait(self._wrap_pool_connect_inner(fn, connection))
+
+    def _wrap_pool_connect_inner(self, fn, connection):
         dialect = self.dialect
         try:
-            return fn()
+            rv = yield fn()
         except dialect.dbapi.Error as e:
             if connection is None:
                 Connection._handle_dbapi_exception_noconnection(
                     e, dialect, self)
             else:
                 util.reraise(*sys.exc_info())
+        else:
+            raise util.Return(rv)
 
     def raw_connection(self, _connection=None):
         """Return a "raw" DBAPI connection from the connection pool.

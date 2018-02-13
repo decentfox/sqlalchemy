@@ -104,10 +104,10 @@ class FBDialect_kinterbasdb(FBDialect):
     def dbapi(cls):
         return __import__('kinterbasdb')
 
-    def do_execute(self, cursor, statement, parameters, context=None):
+    def _do_execute(self, cursor, statement, parameters, context=None):
         # kinterbase does not accept a None, but wants an empty list
         # when there are no arguments.
-        cursor.execute(statement, parameters or [])
+        yield cursor.execute(statement, parameters or [])
 
     def do_rollback(self, dbapi_connection):
         dbapi_connection.rollback(self.retaining)

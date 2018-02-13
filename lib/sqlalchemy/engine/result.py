@@ -1203,11 +1203,14 @@ class ResultProxy(object):
         e.g. the :meth:`.ResultProxy.close` method will have been called.
 
         """
+        return util.wait(self._first())
+
+    def _first(self):
         if self._metadata is None:
-            return self._non_result(None)
+            raise util.Return(self._non_result(None))
 
         try:
-            row = self._fetchone_impl()
+            row = yield self._fetchone_impl()
         except BaseException as e:
             self.connection._handle_dbapi_exception(
                 e, None, None,
@@ -1215,9 +1218,9 @@ class ResultProxy(object):
 
         try:
             if row is not None:
-                return self.process_rows([row])[0]
+                raise util.Return(self.process_rows([row])[0])
             else:
-                return None
+                return
         finally:
             self.close()
 
@@ -1230,11 +1233,14 @@ class ResultProxy(object):
         e.g. the :meth:`.ResultProxy.close` method will have been called.
 
         """
-        row = self.first()
+        return util.wait(self._scalar())
+
+    def _scalar(self):
+        row = yield self.first()
         if row is not None:
-            return row[0]
+            raise util.Return(row[0])
         else:
-            return None
+            return
 
 
 class BufferedRowResultProxy(ResultProxy):
