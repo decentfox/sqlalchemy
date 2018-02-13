@@ -40,3 +40,7 @@ if sys.version_info < (3, 5):
     collect_ignore.extend([
         'base/test_aioutils.py',
     ])
+    for (dirpath, dirnames, filenames) in os.walk('test/ext/aio'):
+        for filename in filenames:
+            if filename.endswith('.py'):
+                collect_ignore.append(os.sep.join([dirpath, filename])[5:])

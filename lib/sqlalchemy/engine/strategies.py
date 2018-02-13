@@ -285,3 +285,8 @@ class MockEngineStrategy(EngineStrategy):
             raise NotImplementedError()
 
 MockEngineStrategy()
+
+
+if util.py35:
+    from ..ext.aio.strategy import AsyncioEngineStrategy
+    AsyncioEngineStrategy()

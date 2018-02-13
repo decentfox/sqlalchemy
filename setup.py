@@ -163,10 +163,16 @@ def run_setup(with_cext):
             'postgresql': ['psycopg2'],
             'postgresql_pg8000': ['pg8000'],
             'postgresql_psycopg2cffi': ['psycopg2cffi'],
+            'postgresql_asyncpg': ['asyncpg'],
             'oracle': ['cx_oracle'],
             'mssql_pyodbc': ['pyodbc'],
             'mssql_pymssql': ['pymssql']
         },
+        entry_points="""
+            [sqlalchemy.dialects]
+            postgresql.asyncpg = sqlalchemy.dialects.postgresql.asyncpg:PGDialect_asyncpg
+            asyncpg = sqlalchemy.dialects.postgresql.asyncpg:PGDialect_asyncpg
+        """,
         **kwargs
     )
 
